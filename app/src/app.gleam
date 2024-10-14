@@ -5,60 +5,92 @@ import file_streams/file_stream
 import file_streams/text_encoding
 
 pub fn main() {
-	let filename = "src/big.asciidoc"
+	let filename = "src/small.asciidoc"
 	let assert Ok(stream) = file_stream.open_read_text(filename, text_encoding.Unicode)
 
-	let tokens = parse(stream, [])
+	let lines = get_lines(stream)
+	lines |> list.each(io.debug)
+
+	let tokens = parse(lines)
 	tokens |> list.each(io.debug)
 
 	let assert Ok(Nil) = file_stream.close(stream)
 }
 
+pub fn get_lines(stream) {
+	get_lines_helper(stream, []) |> list.reverse
+}
+pub fn get_lines_helper(stream, lines) {
+	case file_stream.read_line(stream) {
+		Ok(line) -> get_lines_helper(stream, [line, ..lines])
+		Error(_) -> lines
+	}
+}
+
 pub type Token {
 	Paragraph(String)
 	Heading(Int, String)
-	List(Int, ListKind, String)
+	List(ListKind, Int, String)
 	Variable(String, String) // name, value
 	Code(String)
 	Attributes(String)
 	Block(List(String))
 	Newline
-	EOF
+	Eof
 }
 pub type ListKind {
-	Enum // = . text = 1) text
-	Item // = * text = -) text
-}
-pub type BlockKind {
-	ParagraphBlock
-	CodeBlock
+	Enum // . text  <=>  1) text
+	Item // * text  <=>  -) text
 }
 
-pub fn parse(stream, tokens) {
-	case file_stream.read_line(stream) {
-		Ok(line) -> {
+pub fn parse(lines) {
+	parse_helper(lines, []) |> list.reverse
+}
+
+fn parse_helper(lines, tokens) {
+	case lines {
+		[line, ..rest] -> {
 			let line = string.trim_right(line)
-			let new_tokens = case line {
-				"----" -> parse_block(stream, [], CodeBlock)
-				_ -> [parse_line(line)]
+			let #(new_tokens, rest_lines) = case line {
+				"----" -> parse_block_code(rest, [])
+				"" -> parse_block_paragraph(rest, [Newline])
+				_ -> #([parse_line(line)], rest)
 			}
-			parse(stream, [new_tokens, tokens] |> list.flatten)
+			parse_helper(rest_lines, [new_tokens, tokens] |> list.flatten)
 		}
-		_ -> [EOF, ..tokens] |> list.reverse
+		[] -> [Eof, ..tokens]
 	}
 }
-fn parse_block(stream, tokens, kind) {
-	case file_stream.read_line(stream) {
-		Ok(line) -> {
+fn parse_block_code(lines, tokens) {
+	case lines {
+		[line, ..rest] -> {
 			let line = string.trim_right(line)
-			let new_tokens = case line, kind {
-				"----", CodeBlock -> []
-				_, CodeBlock -> [parse_line_code(line, True)]
-				_, _ -> [parse_line(line)]
+			let #(new_tokens, continue) = case line {
+				"----" -> #([], False)
+				_ -> #([parse_line_code(line, True)], True)
 			}
-			parse_block(stream, [new_tokens, tokens] |> list.flatten, kind)
+			case continue {
+				True -> parse_block_code(rest, [new_tokens, tokens] |> list.flatten)
+				False -> #([new_tokens, tokens] |> list.flatten, rest)
+			}
 		}
-		_ -> tokens
+		[] -> #(tokens, lines)
+	}
+}
+fn parse_block_paragraph(lines, tokens) {
+	case lines {
+		[line, ..rest] -> {
+			let line = string.trim_right(line)
+			let #(new_tokens, continue) = case line {
+				"" -> #([Newline], False)
+				_ -> #([parse_line(line)], True)
+			}
+			case continue {
+				True -> parse_block_paragraph(rest, [new_tokens, tokens] |> list.flatten)
+				False -> #([new_tokens, tokens] |> list.flatten, rest)
+			}
+		}
+		[] -> #(tokens, lines)
 	}
 }
 
@@ -86,7 +118,7 @@ fn parse_line_heading(line, level) {
 fn parse_line_list(line, level, kind) {
 	case line {
 		"." <> _ | "*" <> _ -> parse_line_list(string.drop_left(line, 1), level+1, kind)
-		_ -> List(level, kind, line |> string.trim)
+		_ -> List(kind, level, line |> string.trim)
 	}
 }
 

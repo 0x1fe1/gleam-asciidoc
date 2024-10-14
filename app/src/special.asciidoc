@@ -1,0 +1,12 @@
+= Heading
+
+Paragraphs that
+span multiple
+lines are very annoying
+
+[,ruby]
+----
+def hello name = 'World'
+  puts "Hello, #{name}!"
+end
+----
