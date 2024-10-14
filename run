@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+
+usage() {
+	local rst green
+	rst=$(tput sgr0 2>/dev/null)
+	green=$(tput setaf 2 2>/dev/null)
+
+	cat <<-EOF
+${green}run$rst - Run Gleam Project ($BICS_VERSION)
+Usage: run [command]
+
+Subcommands:
+    ${green}run watch        [ -w | --watch]$rst
+      run in watch mode
+
+    ${green}run once         [ -o | --once]$rst
+      run once
+
+    ${green}run help         [ -h | --help ]$rst
+      show this message and exit.
+	EOF
+}
+
+once() {
+	pushd ./app
+	gleam run
+	popd
+}
+
+watch() {
+	pushd ./app
+	wgo -xdir=./build clear :: gleam run
+	popd
+}
+
+case "$1" in
+	-w | --watch | watch) watch;;
+	-o | --once | once) once;;
+	-h | --help | help) usage >&2; exit 0;;
+	*) usage >&2; exit 1;;
+esac

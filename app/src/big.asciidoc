@@ -1,0 +1,41 @@
+= Document Title
+
+Doc Writer
+
+:keywords: comparison, sample
+:url-gitlab: https://gitlab.eclipse.org
+:empty-var:
+
+
+
+A paragraph with *bold* and _italic_ text.
+A link to https://eclipse.org[Eclipse].
+A reusable link to {url-gitlab}[GitLab].
+
+image::an-image.jpg[An image,800]
+
+== Section title
+
+
+
+* Unordered list item
+** Add another marker to make a nested item
+
+. Ordered list item
+.. Another ordered list item
+
+NOTE: One of five built-in admonition block types.
+
+=== Subsection title
+
+ Text indented by one space is preformatted.
+	Text indented by one tab is preformatted.
+
+A source block with a Ruby function named `hello` that prints "`Hello, World!`":
+
+[,ruby]
+----
+def hello name = 'World'
+  puts "Hello, #{name}!"
+end
+----
